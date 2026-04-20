@@ -17,8 +17,6 @@ export default function PDFKiller() {
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isDrawing = useRef(false);
-  
-  // הריפראנס הזה אחראי על הגרירה החלקה כמו חמאה בלי לעכב את הריאקט!
   const activeDragRef = useRef<{ id: number, startX: number, startY: number, elem: HTMLElement | null } | null>(null);
 
   const getCanvasPoint = (clientX: number, clientY: number) => {
@@ -143,13 +141,12 @@ export default function PDFKiller() {
     } catch (error) { console.error(error); setIsAnalyzing(false); }
   };
 
-  // פונקציה שמסיימת את הגרירה ושומרת את המיקום החדש
   const handleDragEnd = (e: React.PointerEvent) => {
     if (activeDragRef.current) {
       const { id, startX, startY, elem } = activeDragRef.current;
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
-      if (elem) elem.style.transform = 'none'; // איפוס האנימציה הזמנית
+      if (elem) elem.style.transform = 'none';
       setPlacedTexts(prev => prev.map(t => t.id === id ? { ...t, x: t.x + dx, y: t.y + dy } : t));
       activeDragRef.current = null;
       if ((e.currentTarget as HTMLElement).hasPointerCapture(e.pointerId)) {
@@ -162,7 +159,6 @@ export default function PDFKiller() {
     <main dir="ltr" className="min-h-[100dvh] bg-black text-white flex flex-col py-4 px-4 relative overflow-x-hidden" 
           style={{ WebkitTextSizeAdjust: 'none' } as any}
           onPointerMove={(e) => {
-            // הזזה חלקה 60FPS בלי לעכב את הריאקט
             if (activeDragRef.current) {
               const { startX, startY, elem } = activeDragRef.current;
               const dx = e.clientX - startX;
@@ -175,12 +171,12 @@ export default function PDFKiller() {
       
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-[#39FF14]/10 blur-[150px] rounded-full pointer-events-none" />
 
+      {/* לוגו מוגדל ל-100px */}
       <header className="relative z-20 flex flex-col items-center shrink-0 mb-4">
-        <Image src="/logo.png" alt="Logo" width={50} height={50} className="mb-1 object-contain" priority />
-        <h1 className="text-[8px] font-bold tracking-[0.5em] uppercase text-white/60">PDF Killer</h1>
+        <Image src="/logo.png" alt="Logo" width={100} height={100} className="mb-2 object-contain" priority />
+        <h1 className="text-[10px] font-bold tracking-[0.5em] uppercase text-white/60">PDF Killer</h1>
       </header>
 
-      {/* החזרתי את התיבה להיות באמצע המסך בדיוק */}
       <div className="flex-grow flex items-center justify-center w-full z-10 px-1 md:px-0 mb-4">
         <div className={`w-full bg-[#0E0E0E] border border-white/5 rounded-[2rem] p-3 md:p-8 shadow-2xl transition-all duration-500 ${file ? 'max-w-[950px]' : 'max-w-[420px]'}`}>
           {!file ? (
@@ -272,7 +268,6 @@ export default function PDFKiller() {
                       )}
                       
                       <input 
-                        // התיקון לזום: עושה פוקוס חכם בלי לתת לדפדפן לגלול ולשנות לך זום!
                         ref={(el) => {
                           if (el && activeId === t.id && document.activeElement !== el) {
                             setTimeout(() => el.focus({ preventScroll: true }), 10);
