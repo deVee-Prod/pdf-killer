@@ -143,8 +143,7 @@ export default function PDFKiller() {
   };
 
   return (
-    // text-size-adjust: none מבטל את הנטייה של המובייל להגדיל פונטים לבד
-    <main dir="ltr" className="h-[100dvh] bg-black text-white flex flex-col justify-between py-6 px-4 relative overflow-hidden" 
+    <main dir="ltr" className="min-h-[100dvh] bg-black text-white flex flex-col py-4 px-4 relative overflow-x-hidden" 
           style={{ WebkitTextSizeAdjust: 'none' } as any}
           onPointerMove={(e) => {
             if (isDragging.current && activeId !== null) {
@@ -156,13 +155,13 @@ export default function PDFKiller() {
       
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-[#39FF14]/10 blur-[150px] rounded-full pointer-events-none" />
 
-      <header className="relative z-20 flex flex-col items-center shrink-0">
-        <Image src="/logo.png" alt="Logo" width={60} height={60} className="mb-2 object-contain" priority />
-        <h1 className="text-[10px] font-bold tracking-[0.5em] uppercase text-white/60">PDF Killer</h1>
+      <header className="relative z-20 flex flex-col items-center shrink-0 mb-4">
+        <Image src="/logo.png" alt="Logo" width={50} height={50} className="mb-1 object-contain" priority />
+        <h1 className="text-[8px] font-bold tracking-[0.5em] uppercase text-white/60">PDF Killer</h1>
       </header>
 
-      <div className="flex-grow flex items-center justify-center w-full z-10 px-2 md:px-0 my-4 overflow-hidden">
-        <div className={`w-full bg-[#0E0E0E] border border-white/5 rounded-[2rem] p-4 md:p-8 shadow-2xl transition-all duration-500 ${file ? 'max-w-[950px]' : 'max-w-[420px]'}`}>
+      <div className="flex-grow flex items-start justify-center w-full z-10 px-1 md:px-0 mb-20">
+        <div className={`w-full bg-[#0E0E0E] border border-white/5 rounded-[2rem] p-3 md:p-8 shadow-2xl transition-all duration-500 ${file ? 'max-w-[950px]' : 'max-w-[420px]'}`}>
           {!file ? (
             <label className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-white/10 rounded-3xl cursor-pointer hover:border-[#39FF14]/40 transition-all group">
               <Upload className="text-[#39FF14] mb-4 group-hover:scale-110 transition-transform" size={28} />
@@ -171,27 +170,27 @@ export default function PDFKiller() {
             </label>
           ) : (
             <div className="flex flex-col space-y-4">
-              <div className="flex flex-col md:flex-row justify-between items-center bg-[#151515] p-2 rounded-xl border border-white/5 gap-2 md:gap-0">
-                <div className="flex w-full md:w-auto justify-between gap-2">
+              {/* סרגל כלים משופר למובייל - עוטף שורות אם צריך */}
+              <div className="flex flex-wrap justify-between items-center bg-[#151515] p-2 rounded-xl border border-white/5 gap-2">
+                <div className="flex items-center gap-2">
                   <button onClick={() => window.location.reload()} className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-all"><Trash2 size={16} /></button>
-                  <div className="flex items-center gap-4 bg-black/40 px-4 py-2 rounded-lg border border-white/5">
-                    <button onClick={() => changePage(-1)} disabled={currentPage === 1} className="disabled:opacity-20 hover:text-[#39FF14] transition-all"><ChevronLeft size={18} /></button>
-                    <span className="text-[9px] font-bold tracking-tighter uppercase w-16 text-center">Page {currentPage} / {numPages}</span>
-                    <button onClick={() => changePage(1)} disabled={currentPage === numPages} className="disabled:opacity-20 hover:text-[#39FF14] transition-all"><ChevronRight size={18} /></button>
+                  <div className="flex items-center gap-2 bg-black/40 px-3 py-1.5 rounded-lg border border-white/5">
+                    <button onClick={() => changePage(-1)} disabled={currentPage === 1} className="disabled:opacity-20 hover:text-[#39FF14] transition-all"><ChevronLeft size={16} /></button>
+                    <span className="text-[8px] font-bold tracking-tighter uppercase w-14 text-center">{currentPage} / {numPages}</span>
+                    <button onClick={() => changePage(1)} disabled={currentPage === numPages} className="disabled:opacity-20 hover:text-[#39FF14] transition-all"><ChevronRight size={16} /></button>
                   </div>
                 </div>
-                <div className="flex w-full md:w-auto justify-between md:justify-end gap-2 items-center">
-                  <button onClick={() => setEditMode('text')} className={`px-4 py-2 rounded-lg transition-all flex items-center gap-2 ${editMode === 'text' ? 'bg-[#39FF14] text-black shadow-[0_0_15px_rgba(57,255,20,0.3)]' : 'hover:bg-white/5 text-white/40'}`}>
-                    <Type size={14} /> <span className="text-[10px] font-bold uppercase tracking-widest">Text</span>
+                <div className="flex gap-2">
+                  <button onClick={() => setEditMode('text')} className={`px-3 py-2 rounded-lg transition-all flex items-center gap-1.5 ${editMode === 'text' ? 'bg-[#39FF14] text-black shadow-[0_0_15px_rgba(57,255,20,0.3)]' : 'hover:bg-white/5 text-white/40'}`}>
+                    <Type size={12} /> <span className="text-[9px] font-bold uppercase tracking-widest">Text</span>
                   </button>
-                  <button onClick={() => {setEditMode('draw'); setActiveId(null);}} className={`px-4 py-2 rounded-lg transition-all flex items-center gap-2 ${editMode === 'draw' ? 'bg-[#39FF14] text-black shadow-[0_0_15px_rgba(57,255,20,0.3)]' : 'hover:bg-white/5 text-white/40'}`}>
-                    <PenTool size={14} /> <span className="text-[10px] font-bold uppercase tracking-widest">Sign</span>
+                  <button onClick={() => {setEditMode('draw'); setActiveId(null);}} className={`px-3 py-2 rounded-lg transition-all flex items-center gap-1.5 ${editMode === 'draw' ? 'bg-[#39FF14] text-black shadow-[0_0_15px_rgba(57,255,20,0.3)]' : 'hover:bg-white/5 text-white/40'}`}>
+                    <PenTool size={12} /> <span className="text-[9px] font-bold uppercase tracking-widest">Sign</span>
                   </button>
                 </div>
               </div>
 
-              {/* גלילה חלקה מופעלת כאן */}
-              <div className="w-full h-[55vh] md:h-[65vh] bg-[#D1D1D1] rounded-xl relative overflow-y-auto overflow-x-hidden flex justify-center p-4 md:p-6 shadow-inner overscroll-contain" 
+              <div className="w-full h-[50vh] md:h-[65vh] bg-[#D1D1D1] rounded-xl relative overflow-y-auto overflow-x-hidden flex justify-center p-2 md:p-6 shadow-inner overscroll-contain" 
                    style={{ WebkitOverflowScrolling: 'touch' }}
                    onPointerDown={(e) => {
                      if (!canvasRef.current || (e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).closest('button')) return;
@@ -237,13 +236,13 @@ export default function PDFKiller() {
                            e.stopPropagation(); 
                          }}
                          style={{ left: t.x - 12, top: t.y - 12, touchAction: 'none' }}
-                         className={`absolute flex items-center p-3 transition-all pointer-events-auto ${activeId === t.id ? 'border-2 border-dashed border-[#39FF14] bg-[#39FF14]/5 z-30' : 'border-2 border-transparent z-20 cursor-pointer'}`}>
+                         className={`absolute flex items-center p-2 transition-all pointer-events-auto ${activeId === t.id ? 'border-2 border-dashed border-[#39FF14] bg-[#39FF14]/5 z-30' : 'border-2 border-transparent z-20 cursor-pointer'}`}>
                       
                       {activeId === t.id && (
-                        <div className="absolute -top-10 -left-2 flex gap-2">
-                          <div className="bg-[#39FF14] p-2 rounded text-black shadow-lg cursor-move touch-none flex items-center justify-center"><Move size={14} /></div>
+                        <div className="absolute -top-9 -left-1 flex gap-1.5">
+                          <div className="bg-[#39FF14] p-1.5 rounded text-black shadow-lg cursor-move touch-none flex items-center justify-center"><Move size={12} /></div>
                           <button onPointerDown={(e) => { e.stopPropagation(); setPlacedTexts(prev => prev.filter(pt => pt.id !== t.id)); setActiveId(null); }}
-                                  className="bg-red-500 p-2 rounded text-white shadow-lg touch-none flex items-center justify-center"><Trash2 size={14} /></button>
+                                  className="bg-red-500 p-1.5 rounded text-white shadow-lg touch-none flex items-center justify-center"><Trash2 size={12} /></button>
                         </div>
                       )}
                       
@@ -256,16 +255,15 @@ export default function PDFKiller() {
                         style={{ fontSize: `${t.size}px`, lineHeight: 1.0, width: `${(t.text.length || 1) + 1}ch` }} 
                       />
 
-                      {/* סליידר גודל - המינימום ירד ל-6px! */}
                       {activeId === t.id && (
-                        <div className="absolute -bottom-10 left-0 flex items-center gap-2 bg-[#151515] p-2 rounded-lg border border-white/10 shadow-xl touch-none z-50 w-max">
-                          <span className="text-[8px] text-gray-400 font-bold uppercase">Size</span>
+                        <div className="absolute -bottom-9 left-0 flex items-center gap-1.5 bg-[#151515] p-1.5 rounded-lg border border-white/10 shadow-xl touch-none z-50 w-max">
+                          <span className="text-[7px] text-gray-400 font-bold uppercase">Size</span>
                           <input 
                             type="range" min="6" max="60" 
                             value={t.size}
                             onChange={(e) => setPlacedTexts(prev => prev.map(pt => pt.id === t.id ? { ...pt, size: parseInt(e.target.value) } : pt))}
                             onPointerDown={(e) => e.stopPropagation()} 
-                            className="w-20 md:w-24 accent-[#39FF14]"
+                            className="w-16 md:w-24 accent-[#39FF14]"
                           />
                         </div>
                       )}
@@ -275,7 +273,7 @@ export default function PDFKiller() {
                 </div>
               </div>
 
-              <button onClick={finalizeAndDownload} className="w-full bg-[#39FF14] text-black font-black py-4 md:py-5 rounded-2xl flex items-center justify-center gap-3 transition-all active:scale-[0.98] uppercase tracking-[0.2em] text-[10px] shadow-[0_10px_30px_rgba(57,255,20,0.2)]">
+              <button onClick={finalizeAndDownload} className="w-full bg-[#39FF14] text-black font-black py-4 rounded-2xl flex items-center justify-center gap-3 transition-all active:scale-[0.98] uppercase tracking-[0.2em] text-[10px] shadow-[0_10px_30px_rgba(57,255,20,0.2)]">
                 {isAnalyzing ? <Loader2 className="animate-spin" size={18} /> : <Download size={18} />}
                 <span>Save & Download PDF</span>
               </button>
@@ -284,10 +282,10 @@ export default function PDFKiller() {
         </div>
       </div>
 
-      <footer className="relative z-10 flex flex-col items-center shrink-0">
-        <p className="text-[10px] font-medium tracking-[0.1em] text-gray-600 mb-3">Powered by deVee Boutique Label</p>
-        <div className="h-10 w-10 rounded-full overflow-hidden border border-white/10 shadow-lg">
-          <Image src="/label_logo.jpg" alt="deVee" width={40} height={40} className="object-cover" />
+      <footer className="relative z-10 flex flex-col items-center shrink-0 mt-auto pb-4">
+        <p className="text-[8px] font-medium tracking-[0.1em] text-gray-600 mb-2">Powered by deVee Boutique Label</p>
+        <div className="h-8 w-8 rounded-full overflow-hidden border border-white/10 shadow-lg">
+          <Image src="/label_logo.jpg" alt="deVee" width={32} height={32} className="object-cover" />
         </div>
       </footer>
     </main>
