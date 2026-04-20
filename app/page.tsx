@@ -8,14 +8,10 @@ export default function PDFKiller() {
   const [file, setFile] = useState<File | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [editMode, setEditMode] = useState<'text' | 'draw' | null>(null);
-  
   const [currentPage, setCurrentPage] = useState(1);
   const [numPages, setNumPages] = useState(0);
   const [pdfProxy, setPdfProxy] = useState<any>(null);
-  
-  // אין צורך יותר ב-fontSize הכללי! כל טקסט מנהל את שלו.
   const [activeId, setActiveId] = useState<number | null>(null);
-  
   const [placedTexts, setPlacedTexts] = useState<{ x: number, y: number, text: string, size: number, id: number, page: number }[]>([]);
   const [pageDrawings, setPageDrawings] = useState<{ page: number, dataUrl: string }[]>([]);
   
@@ -29,10 +25,7 @@ export default function PDFKiller() {
     const rect = canvasRef.current.getBoundingClientRect();
     const scaleX = canvasRef.current.width / rect.width;
     const scaleY = canvasRef.current.height / rect.height;
-    return { 
-      x: (clientX - rect.left) * scaleX, 
-      y: (clientY - rect.top) * scaleY 
-    };
+    return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
   };
 
   const drawAt = (clientX: number, clientY: number) => {
@@ -63,20 +56,14 @@ export default function PDFKiller() {
       const viewport = page.getViewport({ scale: 2.5 }); 
       canvas.height = viewport.height;
       canvas.width = viewport.width;
-      
       await page.render({ canvasContext: context!, viewport }).promise;
-
       const existingDrawing = pageDrawings.find(d => d.page === pageNum);
       if (existingDrawing) {
         const img = new window.Image();
         img.src = existingDrawing.dataUrl;
         img.onload = () => context?.drawImage(img, 0, 0);
       }
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsAnalyzing(false);
-    }
+    } catch (error) { console.error(error); } finally { setIsAnalyzing(false); }
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -84,25 +71,16 @@ export default function PDFKiller() {
     if (!uploadedFile) return;
     setIsAnalyzing(true);
     setFile(uploadedFile);
-
     try {
       const pdfjs = await import('pdfjs-dist');
       pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
       const arrayBuffer = await uploadedFile.arrayBuffer();
-      
-      const loadingTask = pdfjs.getDocument({
-        data: arrayBuffer,
-        cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
-        cMapPacked: true,
-      });
-
+      const loadingTask = pdfjs.getDocument({ data: arrayBuffer, cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`, cMapPacked: true });
       const pdf = await loadingTask.promise;
       setPdfProxy(pdf);
       setNumPages(pdf.numPages);
       await renderPage(1, pdf);
-    } catch (error) {
-      console.error(error);
-    }
+    } catch (error) { console.error(error); }
   };
 
   const changePage = (offset: number) => {
@@ -119,35 +97,26 @@ export default function PDFKiller() {
     if (!file || !pdfProxy || typeof window === 'undefined') return;
     saveCurrentDrawing();
     setIsAnalyzing(true);
-
     try {
       const { PDFDocument } = await import('pdf-lib');
       const pdfDoc = await PDFDocument.create();
       const displayWidth = canvasRef.current?.getBoundingClientRect().width || 1;
-
       for (let i = 1; i <= numPages; i++) {
         const page = await pdfProxy.getPage(i);
         const viewport = page.getViewport({ scale: 2.5 });
-        
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = viewport.width;
         tempCanvas.height = viewport.height;
         const tempCtx = tempCanvas.getContext('2d')!;
-        
         await page.render({ canvasContext: tempCtx, viewport }).promise;
-        
         const drawingForPage = pageDrawings.find(d => d.page === i);
         if (drawingForPage || (i === currentPage && canvasRef.current)) {
           const img = new window.Image();
           img.src = i === currentPage ? canvasRef.current!.toDataURL() : drawingForPage!.dataUrl;
-          await new Promise((res) => {
-            img.onload = () => { tempCtx.drawImage(img, 0, 0); res(null); };
-          });
+          await new Promise((res) => { img.onload = () => { tempCtx.drawImage(img, 0, 0); res(null); }; });
         }
-
         const pageTexts = placedTexts.filter(t => t.page === i);
         const scale = tempCanvas.width / displayWidth;
-        
         pageTexts.forEach(t => {
           if (!t.text.trim()) return;
           tempCtx.font = `bold ${t.size * scale}px Arial, sans-serif`;
@@ -156,13 +125,11 @@ export default function PDFKiller() {
           tempCtx.textAlign = 'left';
           tempCtx.fillText(t.text, t.x * scale, t.y * scale);
         });
-
         const imgData = tempCanvas.toDataURL('image/png', 1.0);
         const img = await pdfDoc.embedPng(imgData);
         const newPage = pdfDoc.addPage([img.width / 2.5, img.height / 2.5]);
         newPage.drawImage(img, { x: 0, y: 0, width: newPage.getWidth(), height: newPage.getHeight() });
       }
-
       const pdfBytes = await pdfDoc.save();
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
       const link = document.createElement('a');
@@ -171,17 +138,14 @@ export default function PDFKiller() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
       setTimeout(() => { window.location.reload(); }, 2000);
-    } catch (error) {
-      console.error(error);
-      setIsAnalyzing(false);
-    }
+    } catch (error) { console.error(error); setIsAnalyzing(false); }
   };
 
   return (
-    // הסרתי מפה את ה-touch-none כדי שהגלילה תחזור להיות חלקה וטבעית
+    // text-size-adjust: none מבטל את הנטייה של המובייל להגדיל פונטים לבד
     <main dir="ltr" className="h-[100dvh] bg-black text-white flex flex-col justify-between py-6 px-4 relative overflow-hidden" 
+          style={{ WebkitTextSizeAdjust: 'none' } as any}
           onPointerMove={(e) => {
             if (isDragging.current && activeId !== null) {
               setPlacedTexts(prev => prev.map(t => t.id === activeId ? { ...t, x: e.clientX - dragOffset.current.x, y: e.clientY - dragOffset.current.y } : t));
@@ -192,14 +156,12 @@ export default function PDFKiller() {
       
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-[#39FF14]/10 blur-[150px] rounded-full pointer-events-none" />
 
-      {/* Header */}
       <header className="relative z-20 flex flex-col items-center shrink-0">
         <Image src="/logo.png" alt="Logo" width={60} height={60} className="mb-2 object-contain" priority />
         <h1 className="text-[10px] font-bold tracking-[0.5em] uppercase text-white/60">PDF Killer</h1>
       </header>
 
-      {/* Main Container */}
-      <div className="flex-grow flex items-center justify-center w-full z-10 px-2 md:px-0 my-4">
+      <div className="flex-grow flex items-center justify-center w-full z-10 px-2 md:px-0 my-4 overflow-hidden">
         <div className={`w-full bg-[#0E0E0E] border border-white/5 rounded-[2rem] p-4 md:p-8 shadow-2xl transition-all duration-500 ${file ? 'max-w-[950px]' : 'max-w-[420px]'}`}>
           {!file ? (
             <label className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-white/10 rounded-3xl cursor-pointer hover:border-[#39FF14]/40 transition-all group">
@@ -218,9 +180,7 @@ export default function PDFKiller() {
                     <button onClick={() => changePage(1)} disabled={currentPage === numPages} className="disabled:opacity-20 hover:text-[#39FF14] transition-all"><ChevronRight size={18} /></button>
                   </div>
                 </div>
-
-                <div className="flex w-full md:w-auto justify-between md:justify-end gap-2 items-center flex-wrap">
-                  {/* הסרגל המכוער שהיה פה הוסר לחלוטין! */}
+                <div className="flex w-full md:w-auto justify-between md:justify-end gap-2 items-center">
                   <button onClick={() => setEditMode('text')} className={`px-4 py-2 rounded-lg transition-all flex items-center gap-2 ${editMode === 'text' ? 'bg-[#39FF14] text-black shadow-[0_0_15px_rgba(57,255,20,0.3)]' : 'hover:bg-white/5 text-white/40'}`}>
                     <Type size={14} /> <span className="text-[10px] font-bold uppercase tracking-widest">Text</span>
                   </button>
@@ -230,20 +190,18 @@ export default function PDFKiller() {
                 </div>
               </div>
 
-              {/* הסרתי מפה את ההגבלות הנוקשות של הפאן כדי להחזיר גלילה טבעית וחלקה */}
-              <div className="w-full h-[55vh] md:h-[65vh] bg-[#D1D1D1] rounded-xl relative overflow-auto flex justify-center p-4 md:p-6 shadow-inner" 
+              {/* גלילה חלקה מופעלת כאן */}
+              <div className="w-full h-[55vh] md:h-[65vh] bg-[#D1D1D1] rounded-xl relative overflow-y-auto overflow-x-hidden flex justify-center p-4 md:p-6 shadow-inner overscroll-contain" 
+                   style={{ WebkitOverflowScrolling: 'touch' }}
                    onPointerDown={(e) => {
                      if (!canvasRef.current || (e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).closest('button')) return;
                      if (editMode === 'text') {
                        const rect = canvasRef.current.getBoundingClientRect();
                        const newId = Date.now();
-                       // גודל ברירת מחדל 16 כדי למנוע מאייפון לעשות זום אוטומטי
                        setPlacedTexts(prev => [...prev, { x: e.clientX - rect.left, y: e.clientY - rect.top, text: '', size: 16, id: newId, page: currentPage }]);
                        setActiveId(newId);
                        setEditMode(null);
-                     } else if (editMode !== 'draw') {
-                       setActiveId(null);
-                     }
+                     } else if (editMode !== 'draw') { setActiveId(null); }
                    }}>
                 
                 {isAnalyzing && <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center"><Loader2 className="animate-spin text-[#39FF14]" size={32} /></div>}
@@ -259,16 +217,12 @@ export default function PDFKiller() {
                         canvasRef.current?.getContext('2d')?.moveTo(x, y);
                       } 
                     }} 
-                    onPointerMove={(e) => { 
-                      if (!isDrawing.current || editMode !== 'draw') return; 
-                      drawAt(e.clientX, e.clientY); 
-                    }}
+                    onPointerMove={(e) => { if (!isDrawing.current || editMode !== 'draw') return; drawAt(e.clientX, e.clientY); }}
                     onPointerUp={(e) => { 
                       isDrawing.current = false; 
                       canvasRef.current?.getContext('2d')?.beginPath(); 
                       (e.target as HTMLElement).releasePointerCapture(e.pointerId);
                     }}
-                    onPointerCancel={() => { isDrawing.current = false; canvasRef.current?.getContext('2d')?.beginPath(); }}
                     style={{ touchAction: editMode === 'draw' ? 'none' : 'auto' }}
                     className="max-w-full h-auto bg-white shadow-2xl block pointer-events-auto" 
                   />
@@ -285,13 +239,11 @@ export default function PDFKiller() {
                          style={{ left: t.x - 12, top: t.y - 12, touchAction: 'none' }}
                          className={`absolute flex items-center p-3 transition-all pointer-events-auto ${activeId === t.id ? 'border-2 border-dashed border-[#39FF14] bg-[#39FF14]/5 z-30' : 'border-2 border-transparent z-20 cursor-pointer'}`}>
                       
-                      {/* הכלים שלמעלה: פח והזזה */}
                       {activeId === t.id && (
                         <div className="absolute -top-10 -left-2 flex gap-2">
                           <div className="bg-[#39FF14] p-2 rounded text-black shadow-lg cursor-move touch-none flex items-center justify-center"><Move size={14} /></div>
-                          <button 
-                            onPointerDown={(e) => { e.stopPropagation(); setPlacedTexts(prev => prev.filter(pt => pt.id !== t.id)); setActiveId(null); }}
-                            className="bg-red-500 p-2 rounded text-white shadow-lg touch-none flex items-center justify-center"><Trash2 size={14} /></button>
+                          <button onPointerDown={(e) => { e.stopPropagation(); setPlacedTexts(prev => prev.filter(pt => pt.id !== t.id)); setActiveId(null); }}
+                                  className="bg-red-500 p-2 rounded text-white shadow-lg touch-none flex items-center justify-center"><Trash2 size={14} /></button>
                         </div>
                       )}
                       
@@ -304,21 +256,19 @@ export default function PDFKiller() {
                         style={{ fontSize: `${t.size}px`, lineHeight: 1.0, width: `${(t.text.length || 1) + 1}ch` }} 
                       />
 
-                      {/* הכלים שלמטה: שליטה בגודל הפונט - הפתרון הגאוני שלך! */}
+                      {/* סליידר גודל - המינימום ירד ל-6px! */}
                       {activeId === t.id && (
                         <div className="absolute -bottom-10 left-0 flex items-center gap-2 bg-[#151515] p-2 rounded-lg border border-white/10 shadow-xl touch-none z-50 w-max">
-                          <span className="text-[10px] text-gray-400 font-bold uppercase">Size</span>
+                          <span className="text-[8px] text-gray-400 font-bold uppercase">Size</span>
                           <input 
-                            type="range" min="10" max="60" 
+                            type="range" min="6" max="60" 
                             value={t.size}
                             onChange={(e) => setPlacedTexts(prev => prev.map(pt => pt.id === t.id ? { ...pt, size: parseInt(e.target.value) } : pt))}
-                            // החסימה פה קריטית כדי שגרירת הסליידר לא תגרור בטעות את כל הטקסט
                             onPointerDown={(e) => e.stopPropagation()} 
                             className="w-20 md:w-24 accent-[#39FF14]"
                           />
                         </div>
                       )}
-
                     </div>
                   ))}
                   </div>
