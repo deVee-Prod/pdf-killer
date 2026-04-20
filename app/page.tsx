@@ -17,8 +17,9 @@ export default function PDFKiller() {
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isDrawing = useRef(false);
-  const isDragging = useRef(false);
-  const dragOffset = useRef({ x: 0, y: 0 });
+  
+  // הריפראנס הזה אחראי על הגרירה החלקה כמו חמאה בלי לעכב את הריאקט!
+  const activeDragRef = useRef<{ id: number, startX: number, startY: number, elem: HTMLElement | null } | null>(null);
 
   const getCanvasPoint = (clientX: number, clientY: number) => {
     if (!canvasRef.current) return { x: 0, y: 0 };
@@ -142,10 +143,35 @@ export default function PDFKiller() {
     } catch (error) { console.error(error); setIsAnalyzing(false); }
   };
 
+  // פונקציה שמסיימת את הגרירה ושומרת את המיקום החדש
+  const handleDragEnd = (e: React.PointerEvent) => {
+    if (activeDragRef.current) {
+      const { id, startX, startY, elem } = activeDragRef.current;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if (elem) elem.style.transform = 'none'; // איפוס האנימציה הזמנית
+      setPlacedTexts(prev => prev.map(t => t.id === id ? { ...t, x: t.x + dx, y: t.y + dy } : t));
+      activeDragRef.current = null;
+      if ((e.currentTarget as HTMLElement).hasPointerCapture(e.pointerId)) {
+        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+      }
+    }
+  };
+
   return (
-    // הורדתי מפה את ה-onPointerMove הכללי שניסה לנהל הכל, הכל עבר לטקסט עצמו
     <main dir="ltr" className="min-h-[100dvh] bg-black text-white flex flex-col py-4 px-4 relative overflow-x-hidden" 
-          style={{ WebkitTextSizeAdjust: 'none' } as any}>
+          style={{ WebkitTextSizeAdjust: 'none' } as any}
+          onPointerMove={(e) => {
+            // הזזה חלקה 60FPS בלי לעכב את הריאקט
+            if (activeDragRef.current) {
+              const { startX, startY, elem } = activeDragRef.current;
+              const dx = e.clientX - startX;
+              const dy = e.clientY - startY;
+              if (elem) elem.style.transform = `translate(${dx}px, ${dy}px)`;
+            }
+          }} 
+          onPointerUp={handleDragEnd}
+          onPointerCancel={handleDragEnd}>
       
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-[#39FF14]/10 blur-[150px] rounded-full pointer-events-none" />
 
@@ -154,7 +180,8 @@ export default function PDFKiller() {
         <h1 className="text-[8px] font-bold tracking-[0.5em] uppercase text-white/60">PDF Killer</h1>
       </header>
 
-      <div className="flex-grow flex items-start justify-center w-full z-10 px-1 md:px-0 mb-20">
+      {/* החזרתי את התיבה להיות באמצע המסך בדיוק */}
+      <div className="flex-grow flex items-center justify-center w-full z-10 px-1 md:px-0 mb-4">
         <div className={`w-full bg-[#0E0E0E] border border-white/5 rounded-[2rem] p-3 md:p-8 shadow-2xl transition-all duration-500 ${file ? 'max-w-[950px]' : 'max-w-[420px]'}`}>
           {!file ? (
             <label className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-white/10 rounded-3xl cursor-pointer hover:border-[#39FF14]/40 transition-all group">
@@ -222,30 +249,16 @@ export default function PDFKiller() {
                   <div className="absolute inset-0 pointer-events-none">
                   {placedTexts.filter(t => t.page === currentPage).map(t => (
                     <div key={t.id} 
-                         // שינויים קריטיים: ביטול האנימציה על התנועה והוספת נעילת אצבע חכמה
                          onPointerDown={(e) => { 
-                           isDragging.current = true; 
-                           setActiveId(t.id); 
-                           dragOffset.current = { x: e.clientX - t.x, y: e.clientY - t.y }; 
-                           (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
                            e.stopPropagation(); 
-                         }}
-                         onPointerMove={(e) => {
-                           if (isDragging.current && activeId === t.id) {
-                             setPlacedTexts(prev => prev.map(pt => pt.id === t.id ? { ...pt, x: e.clientX - dragOffset.current.x, y: e.clientY - dragOffset.current.y } : pt));
-                           }
-                         }}
-                         onPointerUp={(e) => { 
-                           isDragging.current = false; 
-                           if ((e.currentTarget as HTMLElement).hasPointerCapture(e.pointerId)) {
-                             (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-                           }
-                         }}
-                         onPointerCancel={(e) => { 
-                           isDragging.current = false; 
-                           if ((e.currentTarget as HTMLElement).hasPointerCapture(e.pointerId)) {
-                             (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-                           }
+                           setActiveId(t.id); 
+                           activeDragRef.current = {
+                             id: t.id,
+                             startX: e.clientX,
+                             startY: e.clientY,
+                             elem: e.currentTarget as HTMLElement
+                           };
+                           (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
                          }}
                          style={{ left: t.x - 12, top: t.y - 12, touchAction: 'none' }}
                          className={`absolute flex items-center p-2 transition-colors pointer-events-auto ${activeId === t.id ? 'border-2 border-dashed border-[#39FF14] bg-[#39FF14]/5 z-30' : 'border-2 border-transparent z-20 cursor-pointer'}`}>
@@ -259,7 +272,12 @@ export default function PDFKiller() {
                       )}
                       
                       <input 
-                        autoFocus={activeId === t.id} 
+                        // התיקון לזום: עושה פוקוס חכם בלי לתת לדפדפן לגלול ולשנות לך זום!
+                        ref={(el) => {
+                          if (el && activeId === t.id && document.activeElement !== el) {
+                            setTimeout(() => el.focus({ preventScroll: true }), 10);
+                          }
+                        }}
                         type="text" 
                         value={t.text} 
                         onChange={(e) => setPlacedTexts(prev => prev.map(pt => pt.id === t.id ? {...pt, text: e.target.value} : pt))} 
