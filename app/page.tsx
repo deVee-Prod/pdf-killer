@@ -22,8 +22,24 @@ export default function PDFKiller() {
   const isDrawing = useRef(false);
   const isDragging = useRef(false);
   const dragOffset = useRef({ x: 0, y: 0 });
+  const [touchActiveId, setTouchActiveId] = useState<number | null>(null);
 
-  const saveCurrentDrawing = () => {
+  const getCanvasPoint = (clientX: number, clientY: number) => {
+    if (!canvasRef.current) return { x: 0, y: 0 };
+    const rect = canvasRef.current.getBoundingClientRect();
+    const scale = canvasRef.current.width / rect.width;
+    return { x: (clientX - rect.left) * scale, y: (clientY - rect.top) * scale };
+  };
+
+  const drawAt = (clientX: number, clientY: number) => {
+    if (!canvasRef.current || editMode !== 'draw') return;
+    const ctx = canvasRef.current.getContext('2d')!;
+    const { x, y } = getCanvasPoint(clientX, clientY);
+    ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.strokeStyle = '#000';
+    ctx.lineTo(x, y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x, y);
+  };
+
+
     if (canvasRef.current) {
       const dataUrl = canvasRef.current.toDataURL();
       setPageDrawings(prev => {
@@ -95,7 +111,26 @@ export default function PDFKiller() {
     }
   };
 
-  const handleContainerClick = (e: React.MouseEvent) => {
+  const handleContainerTouch = (e: React.TouchEvent) => {
+    if (!canvasRef.current) return;
+    if ((e.target as HTMLElement).tagName === 'INPUT') return;
+    if (editMode !== 'text') return;
+    const touch = e.changedTouches[0];
+    const rect = canvasRef.current.getBoundingClientRect();
+    const newId = Date.now();
+    setPlacedTexts(prev => [...prev, { 
+      x: touch.clientX - rect.left, 
+      y: touch.clientY - rect.top, 
+      text: '', 
+      size: fontSize, 
+      id: newId, 
+      page: currentPage 
+    }]);
+    setActiveId(newId);
+    setEditMode(null);
+  };
+
+
     if (!canvasRef.current) return;
     if ((e.target as HTMLElement).tagName === 'INPUT') return;
 
@@ -233,21 +268,32 @@ export default function PDFKiller() {
               </div>
 
               <div className="w-full h-[60vh] md:h-[65vh] bg-[#D1D1D1] rounded-xl relative overflow-auto flex justify-center p-4 md:p-6 shadow-inner" 
-                   onClick={handleContainerClick}>
+                   onClick={handleContainerClick}
+                   onTouchEnd={handleContainerTouch}>
                 
                 {isAnalyzing && <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center"><Loader2 className="animate-spin text-[#39FF14]" size={32} /></div>}
                 
                 <div className="relative h-max pointer-events-none">
                   <canvas ref={canvasRef} 
                     onMouseDown={() => { if (editMode === 'draw') isDrawing.current = true; }} 
-                    onMouseMove={(e) => {
-                      if (!isDrawing.current || !canvasRef.current || editMode !== 'draw') return;
-                      const canvas = canvasRef.current; const ctx = canvas.getContext('2d')!;
-                      const rect = canvas.getBoundingClientRect(); const scale = canvas.width / rect.width;
-                      const x = (e.clientX - rect.left) * scale; const y = (e.clientY - rect.top) * scale;
-                      ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.strokeStyle = '#000'; ctx.lineTo(x, y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x, y);
-                    }}
+                    onMouseMove={(e) => { if (!isDrawing.current) return; drawAt(e.clientX, e.clientY); }}
                     onMouseUp={() => { isDrawing.current = false; canvasRef.current?.getContext('2d')?.beginPath(); }}
+                    onTouchStart={(e) => { 
+                      if (editMode === 'draw') { 
+                        e.preventDefault(); 
+                        isDrawing.current = true; 
+                        const t = e.touches[0];
+                        const { x, y } = getCanvasPoint(t.clientX, t.clientY);
+                        canvasRef.current?.getContext('2d')?.moveTo(x, y);
+                      }
+                    }}
+                    onTouchMove={(e) => { 
+                      if (!isDrawing.current) return; 
+                      e.preventDefault(); 
+                      drawAt(e.touches[0].clientX, e.touches[0].clientY); 
+                    }}
+                    onTouchEnd={() => { isDrawing.current = false; canvasRef.current?.getContext('2d')?.beginPath(); }}
+                    style={{ touchAction: editMode === 'draw' ? 'none' : 'auto' }}
                     className="max-w-full h-auto bg-white shadow-2xl block pointer-events-auto" 
                   />
                   
@@ -260,11 +306,32 @@ export default function PDFKiller() {
                            dragOffset.current = { x: e.clientX - t.x, y: e.clientY - t.y }; 
                            e.stopPropagation(); 
                          }}
-                         className={`absolute flex items-center p-3 transition-all pointer-events-auto ${activeId === t.id ? 'border-2 border-dashed border-[#39FF14] bg-[#39FF14]/5 z-30' : 'border-2 border-transparent z-20 cursor-pointer'}`}
-                         style={{ left: t.x - 12, top: t.y - 12 }}>
+                         onTouchStart={(e) => {
+                           setActiveId(t.id);
+                           setTouchActiveId(t.id);
+                           const touch = e.touches[0];
+                           dragOffset.current = { x: touch.clientX - t.x, y: touch.clientY - t.y };
+                           e.stopPropagation();
+                         }}
+                         onTouchMove={(e) => {
+                           e.preventDefault();
+                           const touch = e.touches[0];
+                           setPlacedTexts(prev => prev.map(pt => pt.id === t.id 
+                             ? { ...pt, x: touch.clientX - dragOffset.current.x, y: touch.clientY - dragOffset.current.y } 
+                             : pt));
+                         }}
+                         onTouchEnd={() => { isDragging.current = false; }}
+                         style={{ left: t.x - 12, top: t.y - 12, touchAction: 'none' }}
+                         className={`absolute flex items-center p-3 transition-all pointer-events-auto ${activeId === t.id ? 'border-2 border-dashed border-[#39FF14] bg-[#39FF14]/5 z-30' : 'border-2 border-transparent z-20 cursor-pointer'}`}>
                       
                       {activeId === t.id && (
-                        <div className="absolute -top-6 -left-2 bg-[#39FF14] p-1 rounded text-black shadow-lg cursor-move"><Move size={10} /></div>
+                        <div className="absolute -top-8 -left-2 flex gap-1">
+                          <div className="bg-[#39FF14] p-1 rounded text-black shadow-lg cursor-move"><Move size={10} /></div>
+                          <button 
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onClick={(e) => { e.stopPropagation(); setPlacedTexts(prev => prev.filter(pt => pt.id !== t.id)); setActiveId(null); }}
+                            className="bg-red-500 p-1 rounded text-white shadow-lg"><Trash2 size={10} /></button>
+                        </div>
                       )}
                       
                       <input 
