@@ -1,15 +1,16 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // משתיק את הבדיקות של ESLint בזמן בנייה
   eslint: {
     ignoreDuringBuilds: true,
   },
-  // משתיק את השגיאות הקטנוניות של TypeScript בזמן בנייה
   typescript: {
     ignoreBuildErrors: true,
   },
   webpack: (config, { isServer }) => {
+    // זה התיקון הקריטי: אומר ל-Webpack להתעלם מהמודולים האלו לחלוטין
+    config.externals = [...(config.externals || []), { canvas: 'canvas' }];
+    
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
@@ -18,10 +19,12 @@ const nextConfig: NextConfig = {
         path: false,
       };
     }
+    
     config.resolve.alias = {
       ...config.resolve.alias,
       canvas: false,
     };
+    
     return config;
   },
 };
