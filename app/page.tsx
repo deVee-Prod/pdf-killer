@@ -12,7 +12,8 @@ export default function PDFKiller() {
   const [currentPage, setCurrentPage] = useState(1);
   const [numPages, setNumPages] = useState(0);
   const [pdfProxy, setPdfProxy] = useState<any>(null);
-  const [fontSize, setFontSize] = useState(16);
+  
+  // אין צורך יותר ב-fontSize הכללי! כל טקסט מנהל את שלו.
   const [activeId, setActiveId] = useState<number | null>(null);
   
   const [placedTexts, setPlacedTexts] = useState<{ x: number, y: number, text: string, size: number, id: number, page: number }[]>([]);
@@ -23,7 +24,6 @@ export default function PDFKiller() {
   const isDragging = useRef(false);
   const dragOffset = useRef({ x: 0, y: 0 });
 
-  // תיקון קריטי למובייל: חישוב מדויק של קנה המידה (X ו-Y בנפרד) כדי שהחתימה לא תברח מהמסך
   const getCanvasPoint = (clientX: number, clientY: number) => {
     if (!canvasRef.current) return { x: 0, y: 0 };
     const rect = canvasRef.current.getBoundingClientRect();
@@ -180,8 +180,8 @@ export default function PDFKiller() {
   };
 
   return (
-    // ה-100dvh מונע מהפוטר להיחתך במובייל!
-    <main dir="ltr" className="h-[100dvh] bg-black text-white flex flex-col justify-between py-6 px-4 relative overflow-hidden touch-none" 
+    // הסרתי מפה את ה-touch-none כדי שהגלילה תחזור להיות חלקה וטבעית
+    <main dir="ltr" className="h-[100dvh] bg-black text-white flex flex-col justify-between py-6 px-4 relative overflow-hidden" 
           onPointerMove={(e) => {
             if (isDragging.current && activeId !== null) {
               setPlacedTexts(prev => prev.map(t => t.id === activeId ? { ...t, x: e.clientX - dragOffset.current.x, y: e.clientY - dragOffset.current.y } : t));
@@ -220,41 +220,25 @@ export default function PDFKiller() {
                 </div>
 
                 <div className="flex w-full md:w-auto justify-between md:justify-end gap-2 items-center flex-wrap">
+                  {/* הסרגל המכוער שהיה פה הוסר לחלוטין! */}
                   <button onClick={() => setEditMode('text')} className={`px-4 py-2 rounded-lg transition-all flex items-center gap-2 ${editMode === 'text' ? 'bg-[#39FF14] text-black shadow-[0_0_15px_rgba(57,255,20,0.3)]' : 'hover:bg-white/5 text-white/40'}`}>
                     <Type size={14} /> <span className="text-[10px] font-bold uppercase tracking-widest">Text</span>
                   </button>
                   <button onClick={() => {setEditMode('draw'); setActiveId(null);}} className={`px-4 py-2 rounded-lg transition-all flex items-center gap-2 ${editMode === 'draw' ? 'bg-[#39FF14] text-black shadow-[0_0_15px_rgba(57,255,20,0.3)]' : 'hover:bg-white/5 text-white/40'}`}>
                     <PenTool size={14} /> <span className="text-[10px] font-bold uppercase tracking-widest">Sign</span>
                   </button>
-                  
-                  {/* סרגל הגודל - מופיע רק כשמצב Text פועל */}
-                  {editMode === 'text' && (
-                    <div className="flex items-center gap-2 bg-black/40 px-3 py-2 rounded-lg border border-white/5 w-full md:w-auto mt-2 md:mt-0">
-                      <span className="text-[10px] text-gray-500 font-bold uppercase">Size</span>
-                      <input 
-                        type="range" min="10" max="60" value={fontSize}
-                        onChange={(e) => {
-                          const size = parseInt(e.target.value);
-                          setFontSize(size);
-                          if (activeId !== null) {
-                            setPlacedTexts(prev => prev.map(t => t.id === activeId ? { ...t, size } : t));
-                          }
-                        }}
-                        className="w-full md:w-24 accent-[#39FF14]"
-                      />
-                    </div>
-                  )}
                 </div>
               </div>
 
-              {/* קנבס מאוחד שעובד מושלם עם Pointer Events */}
-              <div className="w-full h-[55vh] md:h-[65vh] bg-[#D1D1D1] rounded-xl relative overflow-auto flex justify-center p-4 md:p-6 shadow-inner touch-pan-x touch-pan-y" 
+              {/* הסרתי מפה את ההגבלות הנוקשות של הפאן כדי להחזיר גלילה טבעית וחלקה */}
+              <div className="w-full h-[55vh] md:h-[65vh] bg-[#D1D1D1] rounded-xl relative overflow-auto flex justify-center p-4 md:p-6 shadow-inner" 
                    onPointerDown={(e) => {
                      if (!canvasRef.current || (e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).closest('button')) return;
                      if (editMode === 'text') {
                        const rect = canvasRef.current.getBoundingClientRect();
                        const newId = Date.now();
-                       setPlacedTexts(prev => [...prev, { x: e.clientX - rect.left, y: e.clientY - rect.top, text: '', size: fontSize, id: newId, page: currentPage }]);
+                       // גודל ברירת מחדל 16 כדי למנוע מאייפון לעשות זום אוטומטי
+                       setPlacedTexts(prev => [...prev, { x: e.clientX - rect.left, y: e.clientY - rect.top, text: '', size: 16, id: newId, page: currentPage }]);
                        setActiveId(newId);
                        setEditMode(null);
                      } else if (editMode !== 'draw') {
@@ -301,6 +285,7 @@ export default function PDFKiller() {
                          style={{ left: t.x - 12, top: t.y - 12, touchAction: 'none' }}
                          className={`absolute flex items-center p-3 transition-all pointer-events-auto ${activeId === t.id ? 'border-2 border-dashed border-[#39FF14] bg-[#39FF14]/5 z-30' : 'border-2 border-transparent z-20 cursor-pointer'}`}>
                       
+                      {/* הכלים שלמעלה: פח והזזה */}
                       {activeId === t.id && (
                         <div className="absolute -top-10 -left-2 flex gap-2">
                           <div className="bg-[#39FF14] p-2 rounded text-black shadow-lg cursor-move touch-none flex items-center justify-center"><Move size={14} /></div>
@@ -318,6 +303,22 @@ export default function PDFKiller() {
                         className="bg-transparent border-none outline-none text-black font-bold p-0 m-0 w-full" 
                         style={{ fontSize: `${t.size}px`, lineHeight: 1.0, width: `${(t.text.length || 1) + 1}ch` }} 
                       />
+
+                      {/* הכלים שלמטה: שליטה בגודל הפונט - הפתרון הגאוני שלך! */}
+                      {activeId === t.id && (
+                        <div className="absolute -bottom-10 left-0 flex items-center gap-2 bg-[#151515] p-2 rounded-lg border border-white/10 shadow-xl touch-none z-50 w-max">
+                          <span className="text-[10px] text-gray-400 font-bold uppercase">Size</span>
+                          <input 
+                            type="range" min="10" max="60" 
+                            value={t.size}
+                            onChange={(e) => setPlacedTexts(prev => prev.map(pt => pt.id === t.id ? { ...pt, size: parseInt(e.target.value) } : pt))}
+                            // החסימה פה קריטית כדי שגרירת הסליידר לא תגרור בטעות את כל הטקסט
+                            onPointerDown={(e) => e.stopPropagation()} 
+                            className="w-20 md:w-24 accent-[#39FF14]"
+                          />
+                        </div>
+                      )}
+
                     </div>
                   ))}
                   </div>
