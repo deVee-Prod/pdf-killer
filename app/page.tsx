@@ -22,13 +22,17 @@ export default function PDFKiller() {
   const isDrawing = useRef(false);
   const isDragging = useRef(false);
   const dragOffset = useRef({ x: 0, y: 0 });
-  const [touchActiveId, setTouchActiveId] = useState<number | null>(null);
 
+  // תיקון קריטי למובייל: חישוב מדויק של קנה המידה (X ו-Y בנפרד) כדי שהחתימה לא תברח מהמסך
   const getCanvasPoint = (clientX: number, clientY: number) => {
     if (!canvasRef.current) return { x: 0, y: 0 };
     const rect = canvasRef.current.getBoundingClientRect();
-    const scale = canvasRef.current.width / rect.width;
-    return { x: (clientX - rect.left) * scale, y: (clientY - rect.top) * scale };
+    const scaleX = canvasRef.current.width / rect.width;
+    const scaleY = canvasRef.current.height / rect.height;
+    return { 
+      x: (clientX - rect.left) * scaleX, 
+      y: (clientY - rect.top) * scaleY 
+    };
   };
 
   const drawAt = (clientX: number, clientY: number) => {
@@ -39,7 +43,7 @@ export default function PDFKiller() {
     ctx.lineTo(x, y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x, y);
   };
 
-
+  const saveCurrentDrawing = () => {
     if (canvasRef.current) {
       const dataUrl = canvasRef.current.toDataURL();
       setPageDrawings(prev => {
@@ -111,54 +115,12 @@ export default function PDFKiller() {
     }
   };
 
-  const handleContainerTouch = (e: React.TouchEvent) => {
-    if (!canvasRef.current) return;
-    if ((e.target as HTMLElement).tagName === 'INPUT') return;
-    if (editMode !== 'text') return;
-    const touch = e.changedTouches[0];
-    const rect = canvasRef.current.getBoundingClientRect();
-    const newId = Date.now();
-    setPlacedTexts(prev => [...prev, { 
-      x: touch.clientX - rect.left, 
-      y: touch.clientY - rect.top, 
-      text: '', 
-      size: fontSize, 
-      id: newId, 
-      page: currentPage 
-    }]);
-    setActiveId(newId);
-    setEditMode(null);
-  };
-
-
-    if (!canvasRef.current) return;
-    if ((e.target as HTMLElement).tagName === 'INPUT') return;
-
-    if (editMode === 'text') {
-      const rect = canvasRef.current.getBoundingClientRect();
-      const newId = Date.now();
-      setPlacedTexts(prev => [...prev, { 
-        x: e.clientX - rect.left, 
-        y: e.clientY - rect.top, 
-        text: '', 
-        size: fontSize, 
-        id: newId, 
-        page: currentPage 
-      }]);
-      setActiveId(newId);
-      setEditMode(null);
-    } else {
-      setActiveId(null);
-    }
-  };
-
   const finalizeAndDownload = async () => {
     if (!file || !pdfProxy || typeof window === 'undefined') return;
     saveCurrentDrawing();
     setIsAnalyzing(true);
 
     try {
-      // ייבוא דינמי בלחיצה בלבד כדי למנוע קריסה ב-Build של Vercel
       const { PDFDocument } = await import('pdf-lib');
       const pdfDoc = await PDFDocument.create();
       const displayWidth = canvasRef.current?.getBoundingClientRect().width || 1;
@@ -210,10 +172,7 @@ export default function PDFKiller() {
       link.click();
       document.body.removeChild(link);
       
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
-
+      setTimeout(() => { window.location.reload(); }, 2000);
     } catch (error) {
       console.error(error);
       setIsAnalyzing(false);
@@ -221,24 +180,26 @@ export default function PDFKiller() {
   };
 
   return (
-    <main dir="ltr" className="h-screen bg-black text-white flex flex-col justify-between py-6 px-4 relative overflow-hidden" 
-          onMouseMove={(e) => {
+    // ה-100dvh מונע מהפוטר להיחתך במובייל!
+    <main dir="ltr" className="h-[100dvh] bg-black text-white flex flex-col justify-between py-6 px-4 relative overflow-hidden touch-none" 
+          onPointerMove={(e) => {
             if (isDragging.current && activeId !== null) {
               setPlacedTexts(prev => prev.map(t => t.id === activeId ? { ...t, x: e.clientX - dragOffset.current.x, y: e.clientY - dragOffset.current.y } : t));
             }
           }} 
-          onMouseUp={() => { isDragging.current = false; }}>
+          onPointerUp={() => { isDragging.current = false; }}
+          onPointerCancel={() => { isDragging.current = false; }}>
       
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-[#39FF14]/10 blur-[150px] rounded-full pointer-events-none" />
 
-      {/* Header - Fixed Top */}
+      {/* Header */}
       <header className="relative z-20 flex flex-col items-center shrink-0">
         <Image src="/logo.png" alt="Logo" width={60} height={60} className="mb-2 object-contain" priority />
         <h1 className="text-[10px] font-bold tracking-[0.5em] uppercase text-white/60">PDF Killer</h1>
       </header>
 
-      {/* Main Container - Centered */}
-      <div className="flex-grow flex items-center justify-center w-full z-10 px-2 md:px-0">
+      {/* Main Container */}
+      <div className="flex-grow flex items-center justify-center w-full z-10 px-2 md:px-0 my-4">
         <div className={`w-full bg-[#0E0E0E] border border-white/5 rounded-[2rem] p-4 md:p-8 shadow-2xl transition-all duration-500 ${file ? 'max-w-[950px]' : 'max-w-[420px]'}`}>
           {!file ? (
             <label className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-white/10 rounded-3xl cursor-pointer hover:border-[#39FF14]/40 transition-all group">
@@ -248,51 +209,82 @@ export default function PDFKiller() {
             </label>
           ) : (
             <div className="flex flex-col space-y-4">
-              <div className="flex justify-between items-center bg-[#151515] p-2 rounded-xl border border-white/5">
-                <button onClick={() => window.location.reload()} className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-all"><Trash2 size={16} /></button>
-
-                <div className="flex items-center gap-4 bg-black/40 px-4 py-2 rounded-lg border border-white/5">
-                  <button onClick={() => changePage(-1)} disabled={currentPage === 1} className="disabled:opacity-20 hover:text-[#39FF14] transition-all"><ChevronLeft size={18} /></button>
-                  <span className="text-[9px] font-bold tracking-tighter uppercase w-16 text-center">Page {currentPage} / {numPages}</span>
-                  <button onClick={() => changePage(1)} disabled={currentPage === numPages} className="disabled:opacity-20 hover:text-[#39FF14] transition-all"><ChevronRight size={18} /></button>
+              <div className="flex flex-col md:flex-row justify-between items-center bg-[#151515] p-2 rounded-xl border border-white/5 gap-2 md:gap-0">
+                <div className="flex w-full md:w-auto justify-between gap-2">
+                  <button onClick={() => window.location.reload()} className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-all"><Trash2 size={16} /></button>
+                  <div className="flex items-center gap-4 bg-black/40 px-4 py-2 rounded-lg border border-white/5">
+                    <button onClick={() => changePage(-1)} disabled={currentPage === 1} className="disabled:opacity-20 hover:text-[#39FF14] transition-all"><ChevronLeft size={18} /></button>
+                    <span className="text-[9px] font-bold tracking-tighter uppercase w-16 text-center">Page {currentPage} / {numPages}</span>
+                    <button onClick={() => changePage(1)} disabled={currentPage === numPages} className="disabled:opacity-20 hover:text-[#39FF14] transition-all"><ChevronRight size={18} /></button>
+                  </div>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex w-full md:w-auto justify-between md:justify-end gap-2 items-center flex-wrap">
                   <button onClick={() => setEditMode('text')} className={`px-4 py-2 rounded-lg transition-all flex items-center gap-2 ${editMode === 'text' ? 'bg-[#39FF14] text-black shadow-[0_0_15px_rgba(57,255,20,0.3)]' : 'hover:bg-white/5 text-white/40'}`}>
                     <Type size={14} /> <span className="text-[10px] font-bold uppercase tracking-widest">Text</span>
                   </button>
                   <button onClick={() => {setEditMode('draw'); setActiveId(null);}} className={`px-4 py-2 rounded-lg transition-all flex items-center gap-2 ${editMode === 'draw' ? 'bg-[#39FF14] text-black shadow-[0_0_15px_rgba(57,255,20,0.3)]' : 'hover:bg-white/5 text-white/40'}`}>
                     <PenTool size={14} /> <span className="text-[10px] font-bold uppercase tracking-widest">Sign</span>
                   </button>
+                  
+                  {/* סרגל הגודל - מופיע רק כשמצב Text פועל */}
+                  {editMode === 'text' && (
+                    <div className="flex items-center gap-2 bg-black/40 px-3 py-2 rounded-lg border border-white/5 w-full md:w-auto mt-2 md:mt-0">
+                      <span className="text-[10px] text-gray-500 font-bold uppercase">Size</span>
+                      <input 
+                        type="range" min="10" max="60" value={fontSize}
+                        onChange={(e) => {
+                          const size = parseInt(e.target.value);
+                          setFontSize(size);
+                          if (activeId !== null) {
+                            setPlacedTexts(prev => prev.map(t => t.id === activeId ? { ...t, size } : t));
+                          }
+                        }}
+                        className="w-full md:w-24 accent-[#39FF14]"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="w-full h-[60vh] md:h-[65vh] bg-[#D1D1D1] rounded-xl relative overflow-auto flex justify-center p-4 md:p-6 shadow-inner" 
-                   onClick={handleContainerClick}
-                   onTouchEnd={handleContainerTouch}>
+              {/* קנבס מאוחד שעובד מושלם עם Pointer Events */}
+              <div className="w-full h-[55vh] md:h-[65vh] bg-[#D1D1D1] rounded-xl relative overflow-auto flex justify-center p-4 md:p-6 shadow-inner touch-pan-x touch-pan-y" 
+                   onPointerDown={(e) => {
+                     if (!canvasRef.current || (e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).closest('button')) return;
+                     if (editMode === 'text') {
+                       const rect = canvasRef.current.getBoundingClientRect();
+                       const newId = Date.now();
+                       setPlacedTexts(prev => [...prev, { x: e.clientX - rect.left, y: e.clientY - rect.top, text: '', size: fontSize, id: newId, page: currentPage }]);
+                       setActiveId(newId);
+                       setEditMode(null);
+                     } else if (editMode !== 'draw') {
+                       setActiveId(null);
+                     }
+                   }}>
                 
                 {isAnalyzing && <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center"><Loader2 className="animate-spin text-[#39FF14]" size={32} /></div>}
                 
                 <div className="relative h-max pointer-events-none">
                   <canvas ref={canvasRef} 
-                    onMouseDown={() => { if (editMode === 'draw') isDrawing.current = true; }} 
-                    onMouseMove={(e) => { if (!isDrawing.current) return; drawAt(e.clientX, e.clientY); }}
-                    onMouseUp={() => { isDrawing.current = false; canvasRef.current?.getContext('2d')?.beginPath(); }}
-                    onTouchStart={(e) => { 
+                    onPointerDown={(e) => {
                       if (editMode === 'draw') { 
-                        e.preventDefault(); 
+                        e.stopPropagation();
+                        (e.target as HTMLElement).setPointerCapture(e.pointerId);
                         isDrawing.current = true; 
-                        const t = e.touches[0];
-                        const { x, y } = getCanvasPoint(t.clientX, t.clientY);
+                        const { x, y } = getCanvasPoint(e.clientX, e.clientY);
                         canvasRef.current?.getContext('2d')?.moveTo(x, y);
-                      }
+                      } 
+                    }} 
+                    onPointerMove={(e) => { 
+                      if (!isDrawing.current || editMode !== 'draw') return; 
+                      drawAt(e.clientX, e.clientY); 
                     }}
-                    onTouchMove={(e) => { 
-                      if (!isDrawing.current) return; 
-                      e.preventDefault(); 
-                      drawAt(e.touches[0].clientX, e.touches[0].clientY); 
+                    onPointerUp={(e) => { 
+                      isDrawing.current = false; 
+                      canvasRef.current?.getContext('2d')?.beginPath(); 
+                      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
                     }}
-                    onTouchEnd={() => { isDrawing.current = false; canvasRef.current?.getContext('2d')?.beginPath(); }}
+                    onPointerCancel={() => { isDrawing.current = false; canvasRef.current?.getContext('2d')?.beginPath(); }}
                     style={{ touchAction: editMode === 'draw' ? 'none' : 'auto' }}
                     className="max-w-full h-auto bg-white shadow-2xl block pointer-events-auto" 
                   />
@@ -300,37 +292,21 @@ export default function PDFKiller() {
                   <div className="absolute inset-0 pointer-events-none">
                   {placedTexts.filter(t => t.page === currentPage).map(t => (
                     <div key={t.id} 
-                         onMouseDown={(e) => { 
+                         onPointerDown={(e) => { 
                            isDragging.current = true; 
                            setActiveId(t.id); 
                            dragOffset.current = { x: e.clientX - t.x, y: e.clientY - t.y }; 
                            e.stopPropagation(); 
                          }}
-                         onTouchStart={(e) => {
-                           setActiveId(t.id);
-                           setTouchActiveId(t.id);
-                           const touch = e.touches[0];
-                           dragOffset.current = { x: touch.clientX - t.x, y: touch.clientY - t.y };
-                           e.stopPropagation();
-                         }}
-                         onTouchMove={(e) => {
-                           e.preventDefault();
-                           const touch = e.touches[0];
-                           setPlacedTexts(prev => prev.map(pt => pt.id === t.id 
-                             ? { ...pt, x: touch.clientX - dragOffset.current.x, y: touch.clientY - dragOffset.current.y } 
-                             : pt));
-                         }}
-                         onTouchEnd={() => { isDragging.current = false; }}
                          style={{ left: t.x - 12, top: t.y - 12, touchAction: 'none' }}
                          className={`absolute flex items-center p-3 transition-all pointer-events-auto ${activeId === t.id ? 'border-2 border-dashed border-[#39FF14] bg-[#39FF14]/5 z-30' : 'border-2 border-transparent z-20 cursor-pointer'}`}>
                       
                       {activeId === t.id && (
-                        <div className="absolute -top-8 -left-2 flex gap-1">
-                          <div className="bg-[#39FF14] p-1 rounded text-black shadow-lg cursor-move"><Move size={10} /></div>
+                        <div className="absolute -top-10 -left-2 flex gap-2">
+                          <div className="bg-[#39FF14] p-2 rounded text-black shadow-lg cursor-move touch-none flex items-center justify-center"><Move size={14} /></div>
                           <button 
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onClick={(e) => { e.stopPropagation(); setPlacedTexts(prev => prev.filter(pt => pt.id !== t.id)); setActiveId(null); }}
-                            className="bg-red-500 p-1 rounded text-white shadow-lg"><Trash2 size={10} /></button>
+                            onPointerDown={(e) => { e.stopPropagation(); setPlacedTexts(prev => prev.filter(pt => pt.id !== t.id)); setActiveId(null); }}
+                            className="bg-red-500 p-2 rounded text-white shadow-lg touch-none flex items-center justify-center"><Trash2 size={14} /></button>
                         </div>
                       )}
                       
