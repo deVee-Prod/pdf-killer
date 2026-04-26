@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Upload, Download, Type, PenTool, Loader2, Trash2, Move, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { Upload, Download, Type, PenTool, Loader2, Trash2, Move, ChevronLeft, ChevronRight, Check, Undo2 } from 'lucide-react';
 import Image from 'next/image';
 
 type PlacedText = { x: number; y: number; text: string; size: number; id: number; page: number };
@@ -18,14 +18,14 @@ export default function PDFKiller() {
   const [activeType, setActiveType] = useState<'text' | 'sig' | null>(null);
   const [placedTexts, setPlacedTexts] = useState<PlacedText[]>([]);
   const [placedSignatures, setPlacedSignatures] = useState<PlacedSignature[]>([]);
+  const [hasDrawnAnything, setHasDrawnAnything] = useState(false); // האם יש ציור פעיל
 
-  // קנבס ציור זמני — מוצג כ-overlay בזמן הציור בלבד
-  const [isDrawingActive, setIsDrawingActive] = useState(false);
-
-  const canvasRef = useRef<HTMLCanvasElement>(null);       // קנבס PDF (תצוגה בלבד)
-  const drawCanvasRef = useRef<HTMLCanvasElement>(null);   // קנבס ציור זמני
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const drawCanvasRef = useRef<HTMLCanvasElement>(null);
   const isDrawing = useRef(false);
-  const drawBoundsRef = useRef<{ minX: number; minY: number; maxX: number; maxY: number } | null>(null);
+  // היסטוריית snapshots לכל stroke — לצורך Undo
+  const strokeHistoryRef = useRef<string[]>([]);
+  const globalBoundsRef = useRef<{ minX: number; minY: number; maxX: number; maxY: number } | null>(null);
   const activeDragRef = useRef<{ id: number; type: 'text' | 'sig'; startX: number; startY: number; elem: HTMLElement | null } | null>(null);
 
   const getCanvasPoint = (canvas: HTMLCanvasElement, clientX: number, clientY: number) => {
@@ -61,6 +61,16 @@ export default function PDFKiller() {
     return () => obs.disconnect();
   }, [file]);
 
+  // כשיוצאים ממצב draw — מנקים קנבס הציור
+  useEffect(() => {
+    if (editMode !== 'draw' && drawCanvasRef.current) {
+      drawCanvasRef.current.getContext('2d')!.clearRect(0, 0, drawCanvasRef.current.width, drawCanvasRef.current.height);
+      strokeHistoryRef.current = [];
+      globalBoundsRef.current = null;
+      setHasDrawnAnything(false);
+    }
+  }, [editMode]);
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFile = e.target.files?.[0];
     if (!uploadedFile) return;
@@ -81,6 +91,7 @@ export default function PDFKiller() {
   const changePage = (offset: number) => {
     const newPage = currentPage + offset;
     if (newPage >= 1 && newPage <= numPages) {
+      setEditMode(null);
       setCurrentPage(newPage);
       setActiveId(null);
       setActiveType(null);
@@ -88,17 +99,22 @@ export default function PDFKiller() {
     }
   };
 
-  // --- ציור חתימה ---
+  // --- ציור חתימה: זורם חופשי ---
   const startDraw = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (editMode !== 'draw' || !drawCanvasRef.current) return;
     e.stopPropagation();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    // שומר snapshot לפני כל stroke חדש (לצורך Undo)
+    strokeHistoryRef.current.push(drawCanvasRef.current.toDataURL());
     isDrawing.current = true;
     const { x, y } = getCanvasPoint(drawCanvasRef.current, e.clientX, e.clientY);
-    drawBoundsRef.current = { minX: x, minY: y, maxX: x, maxY: y };
     const ctx = drawCanvasRef.current.getContext('2d')!;
     ctx.beginPath();
     ctx.moveTo(x, y);
+    // מאתחל bounds אם ראשון
+    if (!globalBoundsRef.current) {
+      globalBoundsRef.current = { minX: x, minY: y, maxX: x, maxY: y };
+    }
   };
 
   const duringDraw = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -107,55 +123,65 @@ export default function PDFKiller() {
     const ctx = drawCanvasRef.current.getContext('2d')!;
     ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.strokeStyle = '#000';
     ctx.lineTo(x, y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x, y);
-    // עדכון גבולות הציור
-    const b = drawBoundsRef.current!;
+    // מרחיב bounds גלובליים
+    const b = globalBoundsRef.current!;
     b.minX = Math.min(b.minX, x); b.minY = Math.min(b.minY, y);
     b.maxX = Math.max(b.maxX, x); b.maxY = Math.max(b.maxY, y);
   };
 
   const endDraw = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!isDrawing.current || !drawCanvasRef.current || !canvasRef.current) return;
+    if (!isDrawing.current) return;
     isDrawing.current = false;
     (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    setHasDrawnAnything(true); // מפעיל כפתורי Done + Undo
+  };
 
-    const b = drawBoundsRef.current;
-    if (!b) return;
+  // Undo — מחזיר stroke אחד אחורה
+  const handleUndo = () => {
+    if (!drawCanvasRef.current || strokeHistoryRef.current.length === 0) return;
+    const prev = strokeHistoryRef.current.pop()!;
+    const ctx = drawCanvasRef.current.getContext('2d')!;
+    const img = new window.Image();
+    img.src = prev;
+    img.onload = () => {
+      ctx.clearRect(0, 0, drawCanvasRef.current!.width, drawCanvasRef.current!.height);
+      ctx.drawImage(img, 0, 0);
+    };
+    if (strokeHistoryRef.current.length === 0) {
+      setHasDrawnAnything(false);
+      globalBoundsRef.current = null;
+    }
+  };
 
+  // Done — קופא את הציור לאובייקט עם ריבוע
+  const handleDone = () => {
+    if (!drawCanvasRef.current || !canvasRef.current || !globalBoundsRef.current) return;
+    const b = globalBoundsRef.current;
     const pad = 16;
     const bx = Math.max(0, b.minX - pad);
     const by = Math.max(0, b.minY - pad);
     const bw = Math.min(drawCanvasRef.current.width - bx, b.maxX - b.minX + pad * 2);
     const bh = Math.min(drawCanvasRef.current.height - by, b.maxY - b.minY + pad * 2);
 
-    // חותך רק את אזור החתימה לתמונה נפרדת
     const cropCanvas = document.createElement('canvas');
     cropCanvas.width = bw; cropCanvas.height = bh;
     cropCanvas.getContext('2d')!.drawImage(drawCanvasRef.current, bx, by, bw, bh, 0, 0, bw, bh);
     const dataUrl = cropCanvas.toDataURL();
 
-    // מחשב מיקום ב-display pixels (overlay)
     const rect = canvasRef.current.getBoundingClientRect();
     const scaleX = rect.width / canvasRef.current.width;
     const scaleY = rect.height / canvasRef.current.height;
 
     const newSig: PlacedSignature = {
-      id: Date.now(),
-      page: currentPage,
-      dataUrl,
-      x: bx * scaleX,
-      y: by * scaleY,
-      width: bw * scaleX,
-      height: bh * scaleY,
+      id: Date.now(), page: currentPage, dataUrl,
+      x: bx * scaleX, y: by * scaleY,
+      width: bw * scaleX, height: bh * scaleY,
     };
 
     setPlacedSignatures(prev => [...prev, newSig]);
     setActiveId(newSig.id);
     setActiveType('sig');
-
-    // מנקה קנבס הציור
-    drawCanvasRef.current.getContext('2d')!.clearRect(0, 0, drawCanvasRef.current.width, drawCanvasRef.current.height);
-    drawBoundsRef.current = null;
-    setEditMode(null);
+    setEditMode(null); // מנקה קנבס דרך ה-useEffect
   };
 
   // --- Drag ---
@@ -191,7 +217,6 @@ export default function PDFKiller() {
         const tempCtx = tempCanvas.getContext('2d')!;
         await page.render({ canvasContext: tempCtx, viewport }).promise;
 
-        // ציור חתימות על העמוד
         const sigsForPage = placedSignatures.filter(s => s.page === i);
         for (const sig of sigsForPage) {
           if (!canvasRef.current) continue;
@@ -203,7 +228,6 @@ export default function PDFKiller() {
           await new Promise<void>(res => { img.onload = () => { tempCtx.drawImage(img, sig.x * scaleX, sig.y * scaleY, sig.width * scaleX, sig.height * scaleY); res(); }; });
         }
 
-        // ציור טקסטים
         const displayWidth = canvasRef.current?.getBoundingClientRect().width || 1;
         const scale = tempCanvas.width / displayWidth;
         placedTexts.filter(t => t.page === i).forEach(t => {
@@ -268,14 +292,35 @@ export default function PDFKiller() {
                   </div>
                 </div>
                 <div className="flex gap-2 items-center">
-                  <button onClick={() => { setEditMode('text'); setActiveId(null); setActiveType(null); }}
-                    className={`px-3 py-2 rounded-lg transition-all flex items-center gap-1.5 ${editMode === 'text' ? 'bg-[#39FF14] text-black shadow-[0_0_15px_rgba(57,255,20,0.3)]' : 'hover:bg-white/5 text-white/40'}`}>
-                    <Type size={12} /> <span className="text-[9px] font-bold uppercase tracking-widest">Text</span>
-                  </button>
-                  <button onClick={() => { setEditMode('draw'); setActiveId(null); setActiveType(null); }}
-                    className={`px-3 py-2 rounded-lg transition-all flex items-center gap-1.5 ${editMode === 'draw' ? 'bg-[#39FF14] text-black shadow-[0_0_15px_rgba(57,255,20,0.3)]' : 'hover:bg-white/5 text-white/40'}`}>
-                    <PenTool size={12} /> <span className="text-[9px] font-bold uppercase tracking-widest">Sign</span>
-                  </button>
+                  {/* במצב ציור — מוצגים Done ו-Undo במקום Text/Sign */}
+                  {editMode === 'draw' ? (
+                    <>
+                      {hasDrawnAnything && (
+                        <button onClick={handleUndo} className="px-3 py-2 rounded-lg transition-all flex items-center gap-1.5 hover:bg-white/5 text-white/40 hover:text-white">
+                          <Undo2 size={12} /> <span className="text-[9px] font-bold uppercase tracking-widest">Undo</span>
+                        </button>
+                      )}
+                      <button onClick={() => setEditMode(null)} className="px-3 py-2 rounded-lg transition-all flex items-center gap-1.5 hover:bg-white/5 text-white/40 hover:text-white">
+                        <span className="text-[9px] font-bold uppercase tracking-widest">Cancel</span>
+                      </button>
+                      {hasDrawnAnything && (
+                        <button onClick={handleDone} className="px-3 py-2 rounded-lg transition-all flex items-center gap-1.5 bg-[#39FF14] text-black shadow-[0_0_15px_rgba(57,255,20,0.3)]">
+                          <Check size={12} /> <span className="text-[9px] font-bold uppercase tracking-widest">Done</span>
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={() => { setEditMode('text'); setActiveId(null); setActiveType(null); }}
+                        className={`px-3 py-2 rounded-lg transition-all flex items-center gap-1.5 ${editMode === 'text' ? 'bg-[#39FF14] text-black shadow-[0_0_15px_rgba(57,255,20,0.3)]' : 'hover:bg-white/5 text-white/40'}`}>
+                        <Type size={12} /> <span className="text-[9px] font-bold uppercase tracking-widest">Text</span>
+                      </button>
+                      <button onClick={() => { setEditMode('draw'); setActiveId(null); setActiveType(null); }}
+                        className="px-3 py-2 rounded-lg transition-all flex items-center gap-1.5 hover:bg-white/5 text-white/40">
+                        <PenTool size={12} /> <span className="text-[9px] font-bold uppercase tracking-widest">Sign</span>
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -317,7 +362,7 @@ export default function PDFKiller() {
                     onPointerUp={endDraw}
                   />
 
-                  {/* Overlay: טקסטים + חתימות */}
+                  {/* Overlay: חתימות + טקסטים */}
                   <div className="absolute inset-0 pointer-events-none">
 
                     {/* חתימות */}
@@ -335,7 +380,6 @@ export default function PDFKiller() {
                                ? 'border-2 border-dashed border-[#39FF14] bg-[#39FF14]/5 z-30'
                                : 'border-2 border-transparent z-20'}`}>
 
-                        {/* כפתורי פעולה */}
                         {activeId === sig.id && activeType === 'sig' && (
                           <div className="absolute -top-9 left-0 flex gap-1.5">
                             <div className="bg-[#39FF14] p-1.5 rounded text-black shadow-lg cursor-move touch-none flex items-center justify-center"><Move size={12} /></div>
