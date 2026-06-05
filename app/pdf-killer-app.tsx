@@ -242,7 +242,7 @@ export default function PDFKillerApp() {
   };
 
   return (
-    <main dir="ltr" className="min-h-[100dvh] bg-black text-white flex flex-col py-4 px-4 relative overflow-x-hidden"
+    <main dir="ltr" className="min-h-[100dvh] text-white flex flex-col py-4 px-4 relative overflow-x-hidden"
           style={{ WebkitTextSizeAdjust: 'none' } as any}
           onPointerMove={(e) => {
             if (activeDragRef.current) {

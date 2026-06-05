@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { DriftingGridBackground } from './components/DriftingGridBackground';
 
 export const metadata: Metadata = {
   title: "PDF Killer",
@@ -21,8 +22,9 @@ export default function RootLayout({
       <head>
         <script src="/coi-serviceworker.js" defer></script>
       </head>
-      <body className="antialiased h-full flex flex-col">
-        {children}
+      <body className="relative min-h-full flex flex-col">
+        <DriftingGridBackground />
+        <div className="relative z-10 flex flex-col min-h-full">{children}</div>
       </body>
     </html>
   );
