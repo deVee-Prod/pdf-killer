@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { DriftingGridBackground } from './components/DriftingGridBackground';
+import { ToolHeader } from './components/ToolHeader';
 
 export const metadata: Metadata = {
   title: "PDF Killer",
@@ -24,7 +25,10 @@ export default function RootLayout({
       </head>
       <body className="relative min-h-full flex flex-col">
         <DriftingGridBackground />
-        <div className="relative z-10 flex flex-col min-h-full">{children}</div>
+        <div className="relative z-10 flex flex-col min-h-full">
+          <ToolHeader />
+          {children}
+        </div>
       </body>
     </html>
   );
