@@ -10,7 +10,7 @@ export default function Page() {
   if (!entered) {
     return (
       <main style={{
-        position: 'fixed', inset: 0, color: '#fff',
+        minHeight: '100dvh', color: '#fff',
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         gap: '24px', fontFamily: 'Arial, sans-serif'
       }}>
