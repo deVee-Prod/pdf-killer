@@ -430,7 +430,7 @@ export default function PDFKillerApp() {
       <footer className="relative z-10 flex flex-col items-center shrink-0 mt-auto pb-4">
         <p className="text-[11px] font-medium tracking-[0.1em] text-gray-500 mb-3">Powered by deVee Boutique Label</p>
         <div className="h-14 w-14 rounded-full overflow-hidden border border-white/10 shadow-lg">
-          <Image src="/label_logo.jpg" alt="deVee" width={56} height={56} className="object-cover" />
+          <Image src="/label_logo.png" alt="deVee" width={56} height={56} className="object-cover" />
         </div>
       </footer>
     </main>
