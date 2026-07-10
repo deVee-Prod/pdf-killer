@@ -6,7 +6,7 @@ import { ToolHeader } from './components/ToolHeader';
 
 export const metadata: Metadata = {
   title: "PDF Killer",
-  description: "Professional media conversion tools by deVee Boutique Label",
+  description: "A fast editing tool for filling out PDF forms.",
   icons: {
     icon: '/icon.png',
     shortcut: '/icon.png',
