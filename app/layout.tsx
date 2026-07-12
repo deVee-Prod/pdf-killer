@@ -7,11 +7,14 @@ import { ToolHeader } from './components/ToolHeader';
 export const metadata: Metadata = {
   title: "PDF Killer",
   description: "A fast editing tool for filling out PDF forms.",
-  icons: {
-    icon: '/icon.png',
-    shortcut: '/icon.png',
-    apple: '/icon.png',
-  },
+    icons: [
+    { rel: 'icon', url: '/favicon-v2.ico' },
+    { rel: 'icon', url: '/favicon-48-v2.png', sizes: '48x48', type: 'image/png' },
+    { rel: 'icon', url: '/favicon-32-v2.png', sizes: '32x32', type: 'image/png' },
+    { rel: 'icon', url: '/favicon-192-v2.png', sizes: '192x192', type: 'image/png' },
+    { rel: 'icon', url: '/favicon-512-v2.png', sizes: '512x512', type: 'image/png' },
+    { rel: 'apple-touch-icon', url: '/favicon-512-v2.png', sizes: '512x512', type: 'image/png' },
+  ],
 };
 
 export default function RootLayout({
