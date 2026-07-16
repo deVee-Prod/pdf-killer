@@ -426,6 +426,15 @@ export default function PDFKillerApp() {
           )}
         </div>
       </div>
+
+      {/* Floating Logo Watermark (Desktop Only) */}
+      <div className="hidden md:flex fixed bottom-6 left-6 z-50 opacity-40 hover:opacity-100 transition-opacity duration-300">
+        <a href="https://devee-music.com" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center">
+          <div className="w-10 h-10 rounded-full overflow-hidden border border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
+            <Image src="/label_logo.png" alt="deVee" width={40} height={40} className="object-cover" />
+          </div>
+        </a>
+      </div>
     </main>
   );
 }
