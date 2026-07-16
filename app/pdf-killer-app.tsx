@@ -242,7 +242,7 @@ export default function PDFKillerApp() {
   };
 
   return (
-    <main dir="ltr" className="min-h-[100dvh] text-white flex flex-col py-4 px-4 relative overflow-x-hidden"
+    <main dir="ltr" className="min-h-[100dvh] text-white flex flex-col pb-4 px-4 relative overflow-x-hidden"
           style={{ WebkitTextSizeAdjust: 'none' } as any}
           onPointerMove={(e) => {
             if (activeDragRef.current) {
@@ -255,7 +255,7 @@ export default function PDFKillerApp() {
 
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-[#39FF14]/10 blur-[150px] rounded-full pointer-events-none" />
 
-      <header className="relative z-20 flex flex-col items-center shrink-0 mb-4 pt-6">
+      <header className="w-full relative z-20 flex flex-col items-center shrink-0 mt-8 mb-6">
         <Image src="/logo.png" alt="Logo" width={100} height={100} className="mb-2 object-contain" priority />
         <h1 className="text-[10px] font-bold tracking-[0.5em] uppercase text-white/60">PDF Killer</h1>
       </header>
