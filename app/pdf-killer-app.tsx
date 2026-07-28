@@ -275,7 +275,7 @@ export default function PDFKillerApp() {
                   Easily Add Signatures & Text To Your Documents
                 </p>
               </div>
-              <label className="flex flex-col items-center justify-center w-full min-h-[400px] border-2 border-dashed border-white/10 rounded-2xl p-12 cursor-pointer hover:border-[#39FF14]/40 transition-all group">
+              <label className="flex flex-col items-center justify-center w-full min-h-[260px] border-2 border-dashed border-white/10 rounded-2xl p-12 cursor-pointer hover:border-[#39FF14]/40 transition-all group">
                 <Upload className="text-[#39FF14] mb-4 group-hover:scale-110 transition-transform" size={28} />
                 <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest px-4 text-center">Upload PDF Contract</span>
                 <input type="file" className="hidden" onChange={handleFileUpload} accept="application/pdf" />
