@@ -242,7 +242,7 @@ export default function PDFKillerApp() {
   };
 
   return (
-    <main dir="ltr" className="min-h-[100dvh] text-white flex flex-col pb-4 px-4 relative overflow-x-hidden"
+    <div dir="ltr" className="min-h-[100dvh] text-white flex flex-col relative overflow-hidden"
           style={{ WebkitTextSizeAdjust: 'none' } as any}
           onPointerMove={(e) => {
             if (activeDragRef.current) {
@@ -253,15 +253,18 @@ export default function PDFKillerApp() {
           onPointerUp={handleDragEnd}
           onPointerCancel={handleDragEnd}>
 
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-[#39FF14]/10 blur-[150px] rounded-full pointer-events-none" />
-
-      <header className="w-full relative z-20 flex flex-col items-center shrink-0 mt-8 mb-6">
-        <Image src="/logo.png" alt="Logo" width={100} height={100} className="mb-2 object-contain" priority />
+      <div className="absolute inset-0 pointer-events-none z-0">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-[#39FF14]/10 rounded-full blur-[120px]" />
+        <div className="absolute bottom-1/4 left-1/3 w-[400px] h-[400px] bg-[#39FF14]/5 rounded-full blur-[100px]" />
+      </div>
+      
+      <header className="w-full relative z-20 flex flex-col items-center shrink-0 mt-8 mb-6 pointer-events-none">
+        <img src="/logo.png" alt="Pdf Killer" className="w-[100px] h-[100px] mb-2 object-contain" />
         <h1 className="text-[10px] font-bold tracking-[0.5em] uppercase text-white/60">PDF Killer</h1>
       </header>
 
-      <div className="flex-grow flex items-center justify-center w-full z-10 px-1 md:px-0 mb-4">
-        <div className={`w-full bg-white/[0.03] backdrop-blur-3xl border border-white/5 rounded-[2.5rem] p-4 md:p-10 space-y-8 shadow-2xl transition-all duration-500 ${file ? 'max-w-[950px]' : 'max-w-xl'}`}>
+      <main className="flex-1 flex items-center justify-center p-6 relative z-10">
+        <div className={`w-full bg-white/[0.03] backdrop-blur-3xl border border-white/5 rounded-[2.5rem] p-4 md:p-10 space-y-8 shadow-2xl transition-all duration-500 ${file ? 'max-w-[950px]' : 'max-w-xl'} relative z-20`}>
           {!file ? (
             <label className="flex flex-col items-center justify-center w-full border-2 border-dashed border-white/10 rounded-2xl p-12 cursor-pointer hover:border-[#39FF14]/40 transition-all group">
               <Upload className="text-[#39FF14] mb-4 group-hover:scale-110 transition-transform" size={28} />
@@ -425,9 +428,7 @@ export default function PDFKillerApp() {
             </div>
           )}
         </div>
-      </div>
-
-
-    </main>
+      </main>
+    </div>
   );
 }
