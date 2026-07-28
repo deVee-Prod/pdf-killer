@@ -264,9 +264,9 @@ export default function PDFKillerApp() {
       </header>
 
       <main className="flex-1 flex items-center justify-center p-6 relative z-10">
-        <div className={`w-full bg-white/[0.03] backdrop-blur-3xl border border-white/5 rounded-[2.5rem] p-4 md:p-10 space-y-8 shadow-2xl transition-all duration-500 ${file ? 'max-w-[950px]' : 'max-w-xl min-h-[450px] flex flex-col justify-center'} relative z-20`}>
+        <div className={`w-full bg-white/[0.03] backdrop-blur-3xl border border-white/5 rounded-[2.5rem] p-4 md:p-10 space-y-8 shadow-2xl transition-all duration-500 ${file ? 'max-w-[950px]' : 'max-w-xl'} relative z-20`}>
           {!file ? (
-            <label className="flex flex-col items-center justify-center w-full border-2 border-dashed border-white/10 rounded-2xl p-12 cursor-pointer hover:border-[#39FF14]/40 transition-all group">
+            <label className="flex flex-col items-center justify-center w-full min-h-[400px] border-2 border-dashed border-white/10 rounded-2xl p-12 cursor-pointer hover:border-[#39FF14]/40 transition-all group">
               <Upload className="text-[#39FF14] mb-4 group-hover:scale-110 transition-transform" size={28} />
               <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest px-4 text-center">Upload PDF Contract</span>
               <input type="file" className="hidden" onChange={handleFileUpload} accept="application/pdf" />
